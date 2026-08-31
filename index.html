@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redline — Tailor your resume to the job</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --paper: #EEF0EA;
+    --paper-raised: #F8F9F4;
+    --ink: #1C2541;
+    --ink-soft: #4A5468;
+    --rule: #C9CDBE;
+    --red: #B23A2E;
+    --red-soft: #F3E0DC;
+    --green: #3A7D5C;
+    --green-soft: #DCEAE1;
+    --amber: #A9752B;
+    --shadow: 0 1px 2px rgba(28,37,65,0.06), 0 8px 24px -12px rgba(28,37,65,0.18);
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 32px 20px 80px;
+  }
+  ::selection{ background: var(--green-soft); }
+
+  .wrap{ max-width: 880px; margin: 0 auto; }
+
+  header.hero{ margin-bottom: 36px; }
+  .eyebrow{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--red);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .eyebrow::before{
+    content: "";
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+    display: inline-block;
+  }
+  h1{
+    font-family: 'Source Serif 4', serif;
+    font-weight: 700;
+    font-size: clamp(28px, 4.5vw, 42px);
+    line-height: 1.1;
+    margin: 0 0 12px;
+    letter-spacing: -0.01em;
+  }
+  header.hero p{
+    color: var(--ink-soft);
+    font-size: 16px;
+    max-width: 54ch;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .grid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 700px){ .grid{ grid-template-columns: 1fr; } }
+
+  .card{
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+    position: relative;
+  }
+  .card-label{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .card-label .count{ color: var(--ink); opacity: 0.5; }
+
+  textarea{
+    width: 100%;
+    min-height: 220px;
+    resize: vertical;
+    border: 1px dashed var(--rule);
+    background: transparent;
+    border-radius: 3px;
+    padding: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--ink);
+    outline: none;
+  }
+  textarea:focus{ border-color: var(--ink); border-style: solid; }
+  textarea::placeholder{ color: #9AA085; }
+
+  .upload-row{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+  .file-btn{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 6px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .file-btn:hover{ border-color: var(--ink); color: var(--ink); }
+  .file-name{ font-size: 11.5px; color: var(--ink-soft); font-style: italic; }
+
+  .action-row{
+    display: flex;
+    justify-content: center;
+    margin: 8px 0 40px;
+  }
+  button.primary{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: var(--ink);
+    color: var(--paper-raised);
+    border: none;
+    padding: 14px 30px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  button.primary:hover:not(:disabled){ background: var(--red); }
+  button.primary:active:not(:disabled){ transform: scale(0.98); }
+  button.primary:disabled{ opacity: 0.45; cursor: default; }
+
+  .error-box{
+    border: 1px solid var(--red);
+    background: var(--red-soft);
+    color: var(--red);
+    font-size: 13.5px;
+    padding: 12px 14px;
+    border-radius: 3px;
+    margin-bottom: 24px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .results{ display: none; }
+  .results.show{ display: block; animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn{ from{ opacity:0; transform: translateY(6px);} to{opacity:1; transform:none;} }
+
+  .divider{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0 24px;
+    color: var(--ink-soft);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .divider::before, .divider::after{
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  .stamp-card{
+    background: var(--paper-raised);
+    border: 2px solid var(--green);
+    border-radius: 4px;
+    padding: 22px 24px;
+    margin-bottom: 28px;
+    position: relative;
+    box-shadow: var(--shadow);
+  }
+  .stamp-label{
+    position: absolute;
+    top: -11px;
+    left: 20px;
+    background: var(--green);
+    color: var(--paper-raised);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 3px;
+  }
+  .stamp-card p{
+    font-family: 'Source Serif 4', serif;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--ink);
+    margin: 6px 0 0;
+  }
+  .copy-btn{
+    margin-top: 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+    background: none;
+    border: 1px solid var(--green);
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .copy-btn:hover{ background: var(--green-soft); }
+
+  .checklist-title{
+    font-family: 'Source Serif 4', serif;
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .checklist-sub{
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin: 0 0 18px;
+  }
+
+  ol.checklist{
+    list-style: none;
+    margin: 0 0 32px;
+    padding: 0;
+    counter-reset: item;
+  }
+  ol.checklist li{
+    counter-increment: item;
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  ol.checklist li:last-child{ border-bottom: none; }
+  ol.checklist li::before{
+    content: counter(item);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--paper-raised);
+    background: var(--red);
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+  }
+  .item-issue{
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--red);
+    font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 4px;
+  }
+  .item-fix{
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  .item-fix del{
+    color: var(--red);
+    text-decoration: line-through;
+    opacity: 0.75;
+  }
+  .item-fix ins{
+    color: var(--green);
+    text-decoration: none;
+    border-bottom: 1.5px solid var(--green);
+  }
+
+  .keywords{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .keyword-tag{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 4px 9px;
+    border-radius: 3px;
+    color: var(--ink-soft);
+  }
+  .keyword-tag.missing{
+    border-color: var(--amber);
+    color: var(--amber);
+    background: #F6ECDA;
+  }
+
+  .section-title{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin: 0 0 12px;
+  }
+
+  .loading{
+    display: none;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin: -18px 0 40px;
+  }
+  .loading.show{ display: flex; }
+  .dot{
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--red);
+    animation: pulse 1s infinite ease-in-out;
+  }
+  .dot:nth-child(2){ animation-delay: 0.15s; }
+  .dot:nth-child(3){ animation-delay: 0.3s; }
+  @keyframes pulse{ 0%,80%,100%{ opacity: 0.25; } 40%{ opacity: 1; } }
+
+  footer.note{
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 40px;
+  }
+
+  .key-card{
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 16px 18px;
+    margin-bottom: 24px;
+    font-size: 13px;
+  }
+  .key-card summary{
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .key-status{
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--red);
+    display: inline-block;
+  }
+  .key-status.ok{ background: var(--green); }
+  .key-body{ margin-top: 14px; }
+  .key-body p{ color: var(--ink-soft); line-height: 1.6; margin: 0 0 10px; }
+  .key-body a{ color: var(--ink); }
+  .key-row{ display: flex; gap: 8px; }
+  .key-row input{
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    padding: 9px 10px;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .key-row button{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper-raised);
+    padding: 0 14px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .key-row button:hover{ background: var(--red); border-color: var(--red); }  .card.drag-over{
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px var(--green-soft), var(--shadow);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Resume markup</div>
+    <h1>Tailor your resume to the job in one pass.</h1>
+    <p>Paste or upload your resume and the job description. You'll get a rewritten objective and a short, prioritized punch-list of edits — the kind an editor would leave in the margin, not a wall of advice.</p>
+  </header>
+
+  <details class="key-card" id="keyCard">
+    <summary><span class="key-status" id="keyStatus"></span> Gemini API key — <span id="keyStatusText">not set</span></summary>
+    <div class="key-body">
+      <p>This runs on Google's free Gemini API. Get a free key (no credit card) at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>, then paste it below. It's saved only in this browser and sent only to Google.</p>
+      <div class="key-row">
+        <input type="password" id="apiKeyInput" placeholder="Paste your Gemini API key...">
+        <button id="saveKeyBtn">Save</button>
+      </div>
+    </div>
+  </details>
+
+  <div class="grid">
+    <div class="card" id="resumeCard">
+      <div class="card-label"><span>01 — Your resume</span><span class="count" id="resumeCount">0 chars</span></div>
+      <textarea id="resumeInput" placeholder="Paste your resume text here, or drag a .txt/.pdf file onto this box..."></textarea>
+      <div class="upload-row">
+        <button class="file-btn" id="resumeFileBtn">Upload .txt / .pdf</button>
+        <span class="file-name" id="resumeFileName"></span>
+      </div>
+      <input type="file" id="resumeFile" accept=".txt,.pdf" style="display:none">
+    </div>
+
+    <div class="card" id="jdCard">
+      <div class="card-label"><span>02 — Job description</span><span class="count" id="jdCount">0 chars</span></div>
+      <textarea id="jdInput" placeholder="Paste the job description here, or drag a .txt/.pdf file onto this box..."></textarea>
+      <div class="upload-row">
+        <button class="file-btn" id="jdFileBtn">Upload .txt / .pdf</button>
+        <span class="file-name" id="jdFileName"></span>
+      </div>
+      <input type="file" id="jdFile" accept=".txt,.pdf" style="display:none">
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="primary" id="analyzeBtn">Analyze &amp; tailor</button>
+  </div>
+
+  <div class="loading" id="loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span id="loadingText">Reading both documents...</span></div>
+
+  <div id="errorBox"></div>
+
+  <div class="results" id="results">
+    <div class="divider">Result</div>
+
+    <div class="stamp-card">
+      <div class="stamp-label">Suggested objective</div>
+      <p id="objectiveText"></p>
+      <button class="copy-btn" id="copyObjective">Copy</button>
+    </div>
+
+    <div class="section-title">Keywords from the job posting</div>
+    <div class="keywords" id="keywordList"></div>
+    <p style="font-size:12.5px; color: var(--ink-soft); margin: 0 0 28px;">Amber tags aren't in your resume yet — worth working in if they genuinely apply.</p>
+
+    <h2 class="checklist-title">Before you hit submit</h2>
+    <p class="checklist-sub">A short, ordered punch-list — fix these and stop.</p>
+    <ol class="checklist" id="checklist"></ol>
+  </div>
+
+  <footer class="note">Your API key stays in this browser. Resume and job text are sent only to Google's Gemini API to generate this analysis.</footer>
+</div>
+
+<script>
+  const resumeInput = document.getElementById('resumeInput');
+  const jdInput = document.getElementById('jdInput');
+  const resumeCount = document.getElementById('resumeCount');
+  const jdCount = document.getElementById('jdCount');
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  const loading = document.getElementById('loading');
+  const loadingText = document.getElementById('loadingText');
+  const errorBox = document.getElementById('errorBox');
+  const results = document.getElementById('results');
+
+  if (window['pdfjsLib']) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  const KEY_STORAGE = 'redline_gemini_api_key';
+  const apiKeyInput = document.getElementById('apiKeyInput');
+  const saveKeyBtn = document.getElementById('saveKeyBtn');
+  const keyStatus = document.getElementById('keyStatus');
+  const keyStatusText = document.getElementById('keyStatusText');
+  const keyCard = document.getElementById('keyCard');
+
+  function getApiKey(){
+    return localStorage.getItem(KEY_STORAGE) || '';
+  }
+  function refreshKeyStatus(){
+    const key = getApiKey();
+    if(key){
+      keyStatus.classList.add('ok');
+      keyStatusText.textContent = 'saved (' + key.slice(0,4) + '••••)';
+      keyCard.open = false;
+    } else {
+      keyStatus.classList.remove('ok');
+      keyStatusText.textContent = 'not set';
+      keyCard.open = true;
+    }
+  }
+  const savedKey = getApiKey();
+  if(savedKey) apiKeyInput.value = savedKey;
+  refreshKeyStatus();
+
+  saveKeyBtn.addEventListener('click', () => {
+    const val = apiKeyInput.value.trim();
+    if(val){
+      localStorage.setItem(KEY_STORAGE, val);
+    } else {
+      localStorage.removeItem(KEY_STORAGE);
+    }
+    refreshKeyStatus();
+  });
+
+  function updateCount(){
+    resumeCount.textContent = resumeInput.value.length + ' chars';
+    jdCount.textContent = jdInput.value.length + ' chars';
+  }
+  resumeInput.addEventListener('input', updateCount);
+  jdInput.addEventListener('input', updateCount);
+
+  async function extractPdfText(file){
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let text = '';
+    for(let i = 1; i <= pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(it => it.str).join(' ') + '\n';
+    }
+    return text.trim();
+  }
+
+  async function loadFileInto(file, targetTextarea, nameEl){
+    nameEl.textContent = file.name;
+    try{
+      if(file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')){
+        nameEl.textContent = file.name + ' (reading...)';
+        const text = await extractPdfText(file);
+        targetTextarea.value = text;
+      } else {
+        const text = await file.text();
+        targetTextarea.value = text;
+      }
+      nameEl.textContent = file.name;
+      updateCount();
+    }catch(e){
+      nameEl.textContent = 'Could not read ' + file.name;
+      console.error(e);
+    }
+  }
+
+  function wireUpload(fileBtnId, fileInputId, fileNameId, targetTextarea){
+    const btn = document.getElementById(fileBtnId);
+    const input = document.getElementById(fileInputId);
+    const nameEl = document.getElementById(fileNameId);
+    btn.addEventListener('click', () => input.click());
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      if(file) loadFileInto(file, targetTextarea, nameEl);
+    });
+  }
+  wireUpload('resumeFileBtn','resumeFile','resumeFileName', resumeInput);
+  wireUpload('jdFileBtn','jdFile','jdFileName', jdInput);
+
+  function wireDragDrop(cardId, targetTextarea, nameElId){
+    const card = document.getElementById(cardId);
+    const nameEl = document.getElementById(nameElId);
+    ['dragenter','dragover'].forEach(evt => {
+      card.addEventListener(evt, (e) => {
+        e.preventDefault(); e.stopPropagation();
+        card.classList.add('drag-over');
+      });
+    });
+    ['dragleave','drop'].forEach(evt => {
+      card.addEventListener(evt, (e) => {
+        e.preventDefault(); e.stopPropagation();
+        card.classList.remove('drag-over');
+      });
+    });
+    card.addEventListener('drop', (e) => {
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if(file) loadFileInto(file, targetTextarea, nameEl);
+    });
+  }
+  wireDragDrop('resumeCard', resumeInput, 'resumeFileName');
+  wireDragDrop('jdCard', jdInput, 'jdFileName');
+
+
+  function showError(msg){
+    errorBox.innerHTML = '<div class="error-box">' + msg + '</div>';
+  }
+  function clearError(){ errorBox.innerHTML = ''; }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  // Converts simple [[del: old]] and [[ins: new]] markers from the model into <del>/<ins> tags safely.
+  function renderMarkup(str){
+    const escaped = escapeHtml(str);
+    return escaped
+      .replace(/\[\[del:(.*?)\]\]/gs, '<del>$1</del>')
+      .replace(/\[\[ins:(.*?)\]\]/gs, '<ins>$1</ins>');
+  }
+
+  analyzeBtn.addEventListener('click', async () => {
+    clearError();
+    results.classList.remove('show');
+    const resumeText = resumeInput.value.trim();
+    const jdText = jdInput.value.trim();
+
+    if(resumeText.length < 40){
+      showError('Add a bit more of your resume — there\\'s not enough text to work with yet.');
+      return;
+    }
+    if(jdText.length < 40){
+      showError('Add the job description — there\\'s not enough text to work with yet.');
+      return;
+    }
+    const apiKey = getApiKey();
+    if(!apiKey){
+      showError('Add your free Gemini API key above first — get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.');
+      keyCard.open = true;
+      return;
+    }
+
+    analyzeBtn.disabled = true;
+    loading.classList.add('show');
+    const loadingMsgs = ['Reading both documents...','Matching skills to the posting...','Drafting the objective...','Building the punch-list...'];
+    let li = 0;
+    const loadingInterval = setInterval(() => {
+      li = (li + 1) % loadingMsgs.length;
+      loadingText.textContent = loadingMsgs[li];
+    }, 1600);
+
+    try{
+      const systemPrompt = `You are a precise, no-fluff resume editor helping someone tailor their resume to a specific job before they apply.
+
+Respond ONLY with a single JSON object, no markdown fences, no preamble, no trailing text. Shape:
+{
+  "objective": "a tailored 2-3 sentence resume objective/summary, written in first person voice appropriate for a resume, specific to this job and this candidate's real background",
+  "keywords": [{"term": "string", "present": true or false}],
+  "checklist": [{"issue": "short 2-4 word tag like 'Missing keyword' or 'Weak bullet'", "fix": "one concise, concrete instruction, under 30 words. When rewriting a specific resume line, use [[del:old text]][[ins:new text]] inline to show the edit."}]
+}
+
+Rules:
+- keywords: 6-10 of the most important skills/terms from the job description, each marked present true/false based on whether they appear in the resume.
+- checklist: 5-7 items maximum, ordered by priority (most important first). Be concrete and specific to THIS resume and THIS job — reference actual resume content where possible. No generic advice like "tailor your resume".
+- Do not invent experience the candidate doesn't have. Only reorganize, rephrase, quantify, or reprioritize what's already there.
+- Keep the objective honest and grounded in the candidate's actual background, angled toward this job's priorities.`;
+
+      const userPrompt = `RESUME:\n${resumeText}\n\nJOB DESCRIPTION:\n${jdText}`;
+
+      const model = 'gemini-2.5-flash';
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+            generationConfig: { temperature: 0.4, maxOutputTokens: 1500 }
+          })
+        }
+      );
+
+      if(!response.ok){
+        const errBody = await response.text().catch(() => '');
+        if(response.status === 400 || response.status === 403){
+          throw new Error('Your API key was rejected. Double-check it above.');
+        }
+        if(response.status === 429){
+          throw new Error('Free tier rate limit hit — wait a minute and try again.');
+        }
+        throw new Error('API request failed (' + response.status + '). ' + errBody.slice(0,120));
+      }
+
+      const data = await response.json();
+      const candidate = (data.candidates && data.candidates[0]) || {};
+      const textBlocks = ((candidate.content && candidate.content.parts) || [])
+        .map(p => p.text || '').join('\n');
+      if(!textBlocks.trim()){
+        throw new Error('Empty response — the model may have blocked this content. Try again.');
+      }
+      const cleaned = textBlocks.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      let parsed;
+      try{
+        parsed = JSON.parse(cleaned);
+      }catch(e){
+        console.error('Parse failure, raw text:', textBlocks);
+        throw new Error('Could not parse the analysis. Please try again.');
+      }
+
+      renderResults(parsed);
+
+    }catch(err){
+      console.error(err);
+      showError('Something went wrong while analyzing: ' + err.message);
+    }finally{
+      clearInterval(loadingInterval);
+      loading.classList.remove('show');
+      analyzeBtn.disabled = false;
+    }
+  });
+
+  function renderResults(parsed){
+    document.getElementById('objectiveText').textContent = parsed.objective || '';
+
+    const kwWrap = document.getElementById('keywordList');
+    kwWrap.innerHTML = '';
+    (parsed.keywords || []).forEach(k => {
+      const tag = document.createElement('span');
+      tag.className = 'keyword-tag' + (k.present ? '' : ' missing');
+      tag.textContent = k.term;
+      kwWrap.appendChild(tag);
+    });
+
+    const list = document.getElementById('checklist');
+    list.innerHTML = '';
+    (parsed.checklist || []).forEach(item => {
+      const li = document.createElement('li');
+      li.innerHTML = `<div></div><div><div class="item-issue">${escapeHtml(item.issue || '')}</div><div class="item-fix">${renderMarkup(item.fix || '')}</div></div>`;
+      list.appendChild(li);
+    });
+
+    results.classList.add('show');
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  document.getElementById('copyObjective').addEventListener('click', () => {
+    const text = document.getElementById('objectiveText').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copyObjective');
+      const original = btn.textContent;
+      btn.textContent = 'Copied';
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    });
+  });
+</script>
+</body>
+</html>
