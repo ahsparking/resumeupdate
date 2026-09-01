@@ -750,7 +750,7 @@ Rules:
     list.innerHTML = '';
     (parsed.checklist || []).forEach(item => {
       const li = document.createElement('li');
-      li.innerHTML = `<div></div><div><div class="item-issue">${escapeHtml(item.issue || '')}</div><div class="item-fix">${renderMarkup(item.fix || '')}</div></div>`;
+      li.innerHTML = `<div><div class="item-issue">${escapeHtml(item.issue || '')}</div><div class="item-fix">${renderMarkup(item.fix || '')}</div></div>`;
       list.appendChild(li);
     });
 
