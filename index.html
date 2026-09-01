@@ -254,6 +254,55 @@
     line-height: 1.55;
     margin: 0 0 16px;
   }
+
+  .match-card{
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 18px 22px;
+    margin-bottom: 28px;
+    box-shadow: var(--shadow);
+  }
+  .match-number{
+    font-family: 'Source Serif 4', serif;
+    font-weight: 700;
+    font-size: 40px;
+    color: var(--ink);
+    line-height: 1;
+    min-width: 64px;
+    text-align: center;
+  }
+  .match-number::after{ content: "%"; font-size: 18px; opacity: 0.6; margin-left: 2px; }
+  .match-info{ flex: 1; }
+  .match-label{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+  .match-bar-track{
+    height: 8px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .match-bar-fill{
+    height: 100%;
+    width: 0%;
+    background: var(--red);
+    transition: width 0.6s ease, background 0.6s ease;
+  }
+  .match-verdict{
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
   .generate-actions{
     display: flex;
     justify-content: center;
@@ -345,6 +394,61 @@
     background: transparent;
     border: 1.5px solid var(--rule);
     color: var(--ink-soft);
+  }
+  .badge-num.amber{ background: var(--amber); }
+  .check-badge input:not(:checked) + .badge-num.amber{
+    background: transparent;
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+  .confirm-flag{
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--amber);
+    border: 1px solid var(--amber);
+    background: #F6ECDA;
+    padding: 1px 7px;
+    border-radius: 3px;
+    margin-left: 8px;
+  }
+
+  .preview-panel{
+    display: none;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 18px 20px;
+    margin-top: 20px;
+    max-height: 420px;
+    overflow-y: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    color: var(--ink);
+  }
+  .preview-panel.show{ display: block; }
+  .preview-panel mark{
+    background: #FBEBA6;
+    color: var(--ink);
+    padding: 0 2px;
+    border-radius: 2px;
+  }
+  .preview-note{
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 10px 0 0;
+  }
+  .preview-note .swatch{
+    display: inline-block;
+    width: 10px; height: 10px;
+    background: #FBEBA6;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
   }
   .item-issue{
     font-size: 11px;
@@ -537,6 +641,15 @@
   <div class="results" id="results">
     <div class="divider">Result</div>
 
+    <div class="match-card" id="matchCard">
+      <div class="match-number" id="matchNumber">—</div>
+      <div class="match-info">
+        <div class="match-label">Current match with this job</div>
+        <div class="match-bar-track"><div class="match-bar-fill" id="matchBarFill"></div></div>
+        <div class="match-verdict" id="matchVerdict"></div>
+      </div>
+    </div>
+
     <div class="stamp-card">
       <div class="stamp-label">Suggested objective</div>
       <p id="objectiveText" contenteditable="true"></p>
@@ -563,6 +676,8 @@
         <button class="download-btn" id="downloadDocx">Download .docx</button>
         <button class="download-btn" id="downloadPdf">Download PDF</button>
       </div>
+      <div class="preview-panel" id="previewPanel"></div>
+      <p class="preview-note" id="previewNote" style="display:none;"><span class="swatch"></span>Highlighted text is new content the AI added — double-check it's accurate before sending this out.</p>
     </div>
   </div>
 
@@ -752,15 +867,22 @@
 
 Respond ONLY with a single JSON object, no markdown fences, no preamble, no trailing text. Shape:
 {
+  "matchScore": 0-100 integer estimating how well the CURRENT, UNEDITED resume matches this job description,
   "objective": "a tailored 2-3 sentence resume objective/summary, written in first person voice appropriate for a resume, specific to this job and this candidate's real background",
   "keywords": [{"term": "string", "present": true or false}],
-  "checklist": [{"issue": "short 2-4 word tag like 'Missing keyword' or 'Weak bullet'", "fix": "one concise, concrete instruction, under 30 words. When rewriting a specific resume line, use [[del:old text]][[ins:new text]] inline to show the edit."}]
+  "checklist": [{
+    "issue": "short 2-4 word tag like 'Missing keyword' or 'Weak bullet'",
+    "fix": "one concise, concrete instruction, under 30 words. When rewriting a specific resume line, use [[del:old text]][[ins:new text]] inline to show the edit.",
+    "requiresConfirmation": true or false
+  }]
 }
 
 Rules:
+- matchScore: be a realistic, slightly conservative grader — judge against what's actually written in the resume today, not its potential.
 - keywords: 6-10 of the most important skills/terms from the job description, each marked present true/false based on whether they appear in the resume.
 - checklist: 5-7 items maximum, ordered by priority (most important first). Be concrete and specific to THIS resume and THIS job — reference actual resume content where possible. No generic advice like "tailor your resume".
-- Do not invent experience the candidate doesn't have. Only reorganize, rephrase, quantify, or reprioritize what's already there.
+- requiresConfirmation: set true ONLY when the fix introduces a skill, tool, responsibility, or accomplishment that is NOT already clearly stated somewhere in the original resume (even if implied) — things the candidate must personally confirm they actually did before adding. Set false when the fix only rewords, quantifies, reorders, or reformats something already explicitly in the resume.
+- Never state as fact that the candidate has a skill or did something the resume doesn't support — phrase those checklist items as suggestions to add IF TRUE ("if you led that testing, add...").
 - Keep the objective honest and grounded in the candidate's actual background, angled toward this job's priorities.`;
 
       const userPrompt = `RESUME:\n${resumeText}\n\nJOB DESCRIPTION:\n${jdText}`;
@@ -828,6 +950,18 @@ Rules:
   function renderResults(parsed){
     document.getElementById('objectiveText').textContent = parsed.objective || '';
 
+    const score = Math.max(0, Math.min(100, Math.round(parsed.matchScore ?? 0)));
+    document.getElementById('matchNumber').textContent = score;
+    const fill = document.getElementById('matchBarFill');
+    fill.style.width = score + '%';
+    const verdict = document.getElementById('matchVerdict');
+    let verdictText, barColor;
+    if(score >= 80){ verdictText = 'Strong match already — the edits below just sharpen it.'; barColor = 'var(--green)'; }
+    else if(score >= 55){ verdictText = 'Decent overlap — a few targeted edits should move the needle.'; barColor = 'var(--amber)'; }
+    else{ verdictText = 'Big gap right now — worth working through the punch-list below.'; barColor = 'var(--red)'; }
+    fill.style.background = barColor;
+    verdict.textContent = verdictText;
+
     const kwWrap = document.getElementById('keywordList');
     kwWrap.innerHTML = '';
     (parsed.keywords || []).forEach(k => {
@@ -840,18 +974,21 @@ Rules:
     lastChecklistItems = parsed.checklist || [];
     lastFinalResumeText = '';
     document.getElementById('downloadRow').classList.remove('show');
+    document.getElementById('previewPanel').classList.remove('show');
+    document.getElementById('previewNote').style.display = 'none';
 
     const list = document.getElementById('checklist');
     list.innerHTML = '';
     lastChecklistItems.forEach((item, idx) => {
+      const needsConfirm = !!item.requiresConfirmation;
       const li = document.createElement('li');
       li.innerHTML = `
         <label class="check-badge">
-          <input type="checkbox" class="approve-check" data-idx="${idx}" checked>
-          <span class="badge-num">${idx + 1}</span>
+          <input type="checkbox" class="approve-check" data-idx="${idx}" ${needsConfirm ? '' : 'checked'}>
+          <span class="badge-num${needsConfirm ? ' amber' : ''}">${idx + 1}</span>
         </label>
         <div>
-          <div class="item-issue">${escapeHtml(item.issue || '')}</div>
+          <div class="item-issue">${escapeHtml(item.issue || '')}${needsConfirm ? '<span class="confirm-flag">Confirm you have this</span>' : ''}</div>
           <div class="item-fix">${renderMarkup(item.fix || '')}</div>
         </div>`;
       list.appendChild(li);
@@ -878,9 +1015,13 @@ Rules:
   }
 
   async function requestFinalResume(apiKey, resumeText, objective, approvedFixes){
-    const sys = `You are rewriting a resume. Apply ONLY the approved edits listed below to the original resume text. Keep every other part of the original resume exactly as it is — same jobs, same dates, same sections, same order. Never invent experience, employers, titles, or numbers that weren't in the original or in an approved edit. Place the given objective/summary at the very top of the resume, above everything else. Output ONLY the complete final resume as plain text, ready to be placed straight into a document — no markdown symbols, no commentary, no code fences, no JSON. Use plain section header lines in capitals (e.g. OBJECTIVE, EXPERIENCE, EDUCATION, SKILLS) followed by their content, with normal line breaks between entries.`;
+    const sys = `You are rewriting a resume. Apply ONLY the approved edits listed below to the original resume text. Keep every other part of the original resume exactly as it is — same jobs, same dates, same sections, same order. Never invent experience, employers, titles, or numbers beyond what's in the original or explicitly given in an approved edit. Place the given objective/summary at the very top of the resume, above everything else.
+
+Some approved edits are marked [NEW CLAIM] — these introduce a skill, tool, or accomplishment that wasn't already in the resume. For ONLY the new words/phrases you insert because of a [NEW CLAIM] edit, wrap that exact inserted text in [[new: ...]] markers, e.g. "...design reviews. [[new: Mentored two junior engineers on GD&T standards.]]" Wrap only the added phrase itself, not the whole surrounding sentence, and never wrap the objective or anything from edits not marked [NEW CLAIM].
+
+Output ONLY the complete final resume as plain text, ready to be placed straight into a document — no markdown symbols, no commentary, no code fences, no JSON. Use plain section header lines in capitals (e.g. OBJECTIVE, EXPERIENCE, EDUCATION, SKILLS) followed by their content, with normal line breaks between entries.`;
     const fixLines = approvedFixes.length
-      ? approvedFixes.map((f, i) => (i + 1) + '. ' + f).join('\n')
+      ? approvedFixes.map((f, i) => (i + 1) + '. ' + (f.isNewClaim ? '[NEW CLAIM] ' : '') + f.text).join('\n')
       : '(none — just insert the objective, otherwise keep the resume as-is)';
     const user = `ORIGINAL RESUME:\n${resumeText}\n\nOBJECTIVE TO PLACE AT THE TOP:\n${objective || '(no objective provided — omit this section)'}\n\nAPPROVED EDITS TO APPLY:\n${fixLines}`;
 
@@ -911,20 +1052,35 @@ Rules:
     return text.replace(/```/g, '').trim();
   }
 
+  function parseNewMarkers(line){
+    const segments = [];
+    const re = /\[\[new:(.*?)\]\]/gs;
+    let lastIndex = 0, m;
+    while((m = re.exec(line)) !== null){
+      if(m.index > lastIndex) segments.push({ text: line.slice(lastIndex, m.index), isNew: false });
+      segments.push({ text: m[1], isNew: true });
+      lastIndex = re.lastIndex;
+    }
+    if(lastIndex < line.length) segments.push({ text: line.slice(lastIndex), isNew: false });
+    return segments.length ? segments : [{ text: line, isNew: false }];
+  }
+
   function textToDocxParagraphs(text){
     const { Paragraph, TextRun, HeadingLevel } = docx;
     return text.split('\n').map(line => {
       const trimmed = line.trim();
       if(!trimmed) return new Paragraph({ text: '' });
-      const isHeading = trimmed.length < 40 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed);
+      const plain = trimmed.replace(/\[\[new:(.*?)\]\]/gs, '$1');
+      const isHeading = plain.length < 40 && plain === plain.toUpperCase() && /[A-Z]/.test(plain);
+      const runs = parseNewMarkers(trimmed).map(seg => new TextRun({
+        text: seg.text,
+        bold: isHeading,
+        highlight: seg.isNew ? 'yellow' : undefined
+      }));
       if(isHeading){
-        return new Paragraph({
-          children: [new TextRun({ text: trimmed, bold: true })],
-          heading: HeadingLevel.HEADING_2,
-          spacing: { before: 240, after: 120 }
-        });
+        return new Paragraph({ children: runs, heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 120 } });
       }
-      return new Paragraph({ children: [new TextRun(trimmed)], spacing: { after: 80 } });
+      return new Paragraph({ children: runs, spacing: { after: 80 } });
     });
   }
 
@@ -946,18 +1102,38 @@ Rules:
     const maxWidth = 504;
     const lineHeight = 15;
     let y = margin;
+
     text.split('\n').forEach(line => {
       const trimmed = line.trim();
       if(!trimmed){ y += lineHeight * 0.6; return; }
-      const isHeading = trimmed.length < 40 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed);
+      const plain = trimmed.replace(/\[\[new:(.*?)\]\]/gs, '$1');
+      const isHeading = plain.length < 40 && plain === plain.toUpperCase() && /[A-Z]/.test(plain);
       doc.setFont('helvetica', isHeading ? 'bold' : 'normal');
       doc.setFontSize(isHeading ? 12.5 : 10.5);
-      const wrapped = doc.splitTextToSize(trimmed, maxWidth);
-      wrapped.forEach(wline => {
-        if(y > 738){ doc.addPage(); y = margin; }
-        doc.text(wline, margin, y);
-        y += lineHeight;
+
+      const tokens = [];
+      parseNewMarkers(trimmed).forEach(seg => {
+        seg.text.split(/\s+/).filter(w => w.length > 0).forEach(w => tokens.push({ word: w, isNew: seg.isNew }));
       });
+
+      if(y > 738){ doc.addPage(); y = margin; }
+      let x = margin;
+      const spaceWidth = doc.getTextWidth(' ');
+      tokens.forEach(tok => {
+        const w = doc.getTextWidth(tok.word);
+        if(x + w > margin + maxWidth){
+          y += lineHeight;
+          if(y > 738){ doc.addPage(); y = margin; }
+          x = margin;
+        }
+        if(tok.isNew){
+          doc.setFillColor(251, 235, 166);
+          doc.rect(x, y - 9, w, 12, 'F');
+        }
+        doc.text(tok.word, x, y);
+        x += w + spaceWidth;
+      });
+      y += lineHeight;
       if(isHeading) y += 4;
     });
     doc.save(filename);
@@ -976,7 +1152,7 @@ Rules:
       if(cb.checked){
         const idx = parseInt(cb.dataset.idx, 10);
         const item = lastChecklistItems[idx];
-        if(item) approvedFixes.push(plainifyFix(item.fix || ''));
+        if(item) approvedFixes.push({ text: plainifyFix(item.fix || ''), isNewClaim: !!item.requiresConfirmation });
       }
     });
     const objective = document.getElementById('objectiveText').textContent.trim();
@@ -985,13 +1161,20 @@ Rules:
     const genBtn = document.getElementById('generateDocBtn');
     const genLoading = document.getElementById('genLoading');
     const downloadRow = document.getElementById('downloadRow');
+    const previewPanel = document.getElementById('previewPanel');
+    const previewNote = document.getElementById('previewNote');
     genBtn.disabled = true;
     genLoading.classList.add('show');
     downloadRow.classList.remove('show');
+    previewPanel.classList.remove('show');
+    previewNote.style.display = 'none';
 
     try{
       lastFinalResumeText = await requestFinalResume(apiKey, resumeText, objective, approvedFixes);
       downloadRow.classList.add('show');
+      previewPanel.innerHTML = renderHighlightedPreview(lastFinalResumeText);
+      previewPanel.classList.add('show');
+      previewNote.style.display = 'block';
     }catch(err){
       console.error(err);
       showError('Could not generate the final resume: ' + err.message);
@@ -1000,6 +1183,11 @@ Rules:
       genLoading.classList.remove('show');
     }
   });
+
+  function renderHighlightedPreview(text){
+    const escaped = escapeHtml(text);
+    return escaped.replace(/\[\[new:(.*?)\]\]/gs, '<mark>$1</mark>');
+  }
 
   document.getElementById('downloadDocx').addEventListener('click', () => {
     if(!lastFinalResumeText) return;
