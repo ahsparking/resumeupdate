@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Redline — Tailor your resume to the job</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
@@ -218,6 +220,15 @@
     line-height: 1.55;
     color: var(--ink);
     margin: 6px 0 0;
+    outline: none;
+    border-bottom: 1px dashed transparent;
+  }
+  .stamp-card p:focus{ border-bottom: 1px dashed var(--green); }
+  .stamp-hint{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    margin: 10px 0 0;
   }
   .copy-btn{
     margin-top: 14px;
@@ -231,6 +242,54 @@
     cursor: pointer;
   }
   .copy-btn:hover{ background: var(--green-soft); }
+
+  .generate-section{
+    border-top: 1px solid var(--rule);
+    padding-top: 24px;
+    margin-top: 8px;
+  }
+  .generate-hint{
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin: 0 0 16px;
+  }
+  .generate-actions{
+    display: flex;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+  .download-row{
+    display: none;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .download-row.show{ display: flex; }
+  .download-btn{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.03em;
+    background: var(--paper-raised);
+    color: var(--ink);
+    border: 1.5px solid var(--ink);
+    padding: 10px 18px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .download-btn:hover{ background: var(--ink); color: var(--paper-raised); }
+  .gen-loading{
+    display: none;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-top: 14px;
+  }
+  .gen-loading.show{ display: flex; }
 
   .checklist-title{
     font-family: 'Source Serif 4', serif;
@@ -246,12 +305,10 @@
 
   ol.checklist{
     list-style: none;
-    margin: 0 0 32px;
+    margin: 0 0 8px;
     padding: 0;
-    counter-reset: item;
   }
   ol.checklist li{
-    counter-increment: item;
     display: grid;
     grid-template-columns: 28px 1fr;
     gap: 12px;
@@ -259,18 +316,35 @@
     border-bottom: 1px solid var(--rule);
   }
   ol.checklist li:last-child{ border-bottom: none; }
-  ol.checklist li::before{
-    content: counter(item);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--paper-raised);
-    background: var(--red);
+  .check-badge{
+    position: relative;
+    width: 22px; height: 22px;
+    margin-top: 2px;
+    cursor: pointer;
+  }
+  .check-badge input{
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    margin: 0;
+  }
+  .badge-num{
     width: 22px; height: 22px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 2px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    background: var(--red);
+    color: var(--paper-raised);
+    pointer-events: none;
+  }
+  .check-badge input:not(:checked) + .badge-num{
+    background: transparent;
+    border: 1.5px solid var(--rule);
+    color: var(--ink-soft);
   }
   .item-issue{
     font-size: 11px;
@@ -465,7 +539,8 @@
 
     <div class="stamp-card">
       <div class="stamp-label">Suggested objective</div>
-      <p id="objectiveText"></p>
+      <p id="objectiveText" contenteditable="true"></p>
+      <p class="stamp-hint">Editable — click in and tweak it before generating your resume.</p>
       <button class="copy-btn" id="copyObjective">Copy</button>
     </div>
 
@@ -474,14 +549,30 @@
     <p style="font-size:12.5px; color: var(--ink-soft); margin: 0 0 28px;">Amber tags aren't in your resume yet — worth working in if they genuinely apply.</p>
 
     <h2 class="checklist-title">Before you hit submit</h2>
-    <p class="checklist-sub">A short, ordered punch-list — fix these and stop.</p>
+    <p class="checklist-sub">A short, ordered punch-list — uncheck anything you don't want applied.</p>
     <ol class="checklist" id="checklist"></ol>
+
+    <div class="generate-section">
+      <div class="section-title">Generate your tailored resume</div>
+      <p class="generate-hint">This applies the checked edits above and the objective (edit it first if you like), then rewrites your full resume as a real document.</p>
+      <div class="generate-actions">
+        <button class="primary" id="generateDocBtn">Generate resume</button>
+      </div>
+      <div class="gen-loading" id="genLoading"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>Rewriting your resume...</span></div>
+      <div class="download-row" id="downloadRow">
+        <button class="download-btn" id="downloadDocx">Download .docx</button>
+        <button class="download-btn" id="downloadPdf">Download PDF</button>
+      </div>
+    </div>
   </div>
 
   <footer class="note">Your API key stays in this browser. Resume and job text are sent only to Google's Gemini API to generate this analysis.</footer>
 </div>
 
 <script>
+  let lastChecklistItems = [];
+  let lastFinalResumeText = '';
+
   const resumeInput = document.getElementById('resumeInput');
   const jdInput = document.getElementById('jdInput');
   const resumeCount = document.getElementById('resumeCount');
@@ -746,11 +837,23 @@ Rules:
       kwWrap.appendChild(tag);
     });
 
+    lastChecklistItems = parsed.checklist || [];
+    lastFinalResumeText = '';
+    document.getElementById('downloadRow').classList.remove('show');
+
     const list = document.getElementById('checklist');
     list.innerHTML = '';
-    (parsed.checklist || []).forEach(item => {
+    lastChecklistItems.forEach((item, idx) => {
       const li = document.createElement('li');
-      li.innerHTML = `<div><div class="item-issue">${escapeHtml(item.issue || '')}</div><div class="item-fix">${renderMarkup(item.fix || '')}</div></div>`;
+      li.innerHTML = `
+        <label class="check-badge">
+          <input type="checkbox" class="approve-check" data-idx="${idx}" checked>
+          <span class="badge-num">${idx + 1}</span>
+        </label>
+        <div>
+          <div class="item-issue">${escapeHtml(item.issue || '')}</div>
+          <div class="item-fix">${renderMarkup(item.fix || '')}</div>
+        </div>`;
       list.appendChild(li);
     });
 
@@ -766,6 +869,145 @@ Rules:
       btn.textContent = 'Copied';
       setTimeout(() => { btn.textContent = original; }, 1500);
     });
+  });
+
+  function plainifyFix(fix){
+    return fix
+      .replace(/\[\[del:(.*?)\]\]/gs, "remove \"$1\"")
+      .replace(/\[\[ins:(.*?)\]\]/gs, "add \"$1\"");
+  }
+
+  async function requestFinalResume(apiKey, resumeText, objective, approvedFixes){
+    const sys = `You are rewriting a resume. Apply ONLY the approved edits listed below to the original resume text. Keep every other part of the original resume exactly as it is — same jobs, same dates, same sections, same order. Never invent experience, employers, titles, or numbers that weren't in the original or in an approved edit. Place the given objective/summary at the very top of the resume, above everything else. Output ONLY the complete final resume as plain text, ready to be placed straight into a document — no markdown symbols, no commentary, no code fences, no JSON. Use plain section header lines in capitals (e.g. OBJECTIVE, EXPERIENCE, EDUCATION, SKILLS) followed by their content, with normal line breaks between entries.`;
+    const fixLines = approvedFixes.length
+      ? approvedFixes.map((f, i) => (i + 1) + '. ' + f).join('\n')
+      : '(none — just insert the objective, otherwise keep the resume as-is)';
+    const user = `ORIGINAL RESUME:\n${resumeText}\n\nOBJECTIVE TO PLACE AT THE TOP:\n${objective || '(no objective provided — omit this section)'}\n\nAPPROVED EDITS TO APPLY:\n${fixLines}`;
+
+    const model = 'gemini-3.1-flash-lite';
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: sys }] },
+          contents: [{ role: "user", parts: [{ text: user }] }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 2000 }
+        })
+      }
+    );
+    if(!resp.ok){
+      const body = await resp.text().catch(() => '');
+      if(resp.status === 404){
+        throw new Error('Google retired the "' + model + '" model — swap it in requestFinalResume() too.');
+      }
+      throw new Error('API error ' + resp.status + '. ' + body.slice(0,120));
+    }
+    const data = await resp.json();
+    const candidate = (data.candidates && data.candidates[0]) || {};
+    const text = ((candidate.content && candidate.content.parts) || []).map(p => p.text || '').join('\n').trim();
+    if(!text) throw new Error('Empty response — try again.');
+    return text.replace(/```/g, '').trim();
+  }
+
+  function textToDocxParagraphs(text){
+    const { Paragraph, TextRun, HeadingLevel } = docx;
+    return text.split('\n').map(line => {
+      const trimmed = line.trim();
+      if(!trimmed) return new Paragraph({ text: '' });
+      const isHeading = trimmed.length < 40 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed);
+      if(isHeading){
+        return new Paragraph({
+          children: [new TextRun({ text: trimmed, bold: true })],
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 240, after: 120 }
+        });
+      }
+      return new Paragraph({ children: [new TextRun(trimmed)], spacing: { after: 80 } });
+    });
+  }
+
+  async function downloadAsDocx(text, filename){
+    const { Document, Packer } = docx;
+    const doc = new Document({ sections: [{ properties: {}, children: textToDocxParagraphs(text) }] });
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadAsPdf(text, filename){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+    const margin = 54;
+    const maxWidth = 504;
+    const lineHeight = 15;
+    let y = margin;
+    text.split('\n').forEach(line => {
+      const trimmed = line.trim();
+      if(!trimmed){ y += lineHeight * 0.6; return; }
+      const isHeading = trimmed.length < 40 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed);
+      doc.setFont('helvetica', isHeading ? 'bold' : 'normal');
+      doc.setFontSize(isHeading ? 12.5 : 10.5);
+      const wrapped = doc.splitTextToSize(trimmed, maxWidth);
+      wrapped.forEach(wline => {
+        if(y > 738){ doc.addPage(); y = margin; }
+        doc.text(wline, margin, y);
+        y += lineHeight;
+      });
+      if(isHeading) y += 4;
+    });
+    doc.save(filename);
+  }
+
+  document.getElementById('generateDocBtn').addEventListener('click', async () => {
+    clearError();
+    const apiKey = getApiKey();
+    if(!apiKey){
+      showError('Add your Gemini API key above first.');
+      keyCard.open = true;
+      return;
+    }
+    const approvedFixes = [];
+    document.querySelectorAll('.approve-check').forEach(cb => {
+      if(cb.checked){
+        const idx = parseInt(cb.dataset.idx, 10);
+        const item = lastChecklistItems[idx];
+        if(item) approvedFixes.push(plainifyFix(item.fix || ''));
+      }
+    });
+    const objective = document.getElementById('objectiveText').textContent.trim();
+    const resumeText = resumeInput.value.trim();
+
+    const genBtn = document.getElementById('generateDocBtn');
+    const genLoading = document.getElementById('genLoading');
+    const downloadRow = document.getElementById('downloadRow');
+    genBtn.disabled = true;
+    genLoading.classList.add('show');
+    downloadRow.classList.remove('show');
+
+    try{
+      lastFinalResumeText = await requestFinalResume(apiKey, resumeText, objective, approvedFixes);
+      downloadRow.classList.add('show');
+    }catch(err){
+      console.error(err);
+      showError('Could not generate the final resume: ' + err.message);
+    }finally{
+      genBtn.disabled = false;
+      genLoading.classList.remove('show');
+    }
+  });
+
+  document.getElementById('downloadDocx').addEventListener('click', () => {
+    if(!lastFinalResumeText) return;
+    downloadAsDocx(lastFinalResumeText, 'tailored-resume.docx');
+  });
+  document.getElementById('downloadPdf').addEventListener('click', () => {
+    if(!lastFinalResumeText) return;
+    downloadAsPdf(lastFinalResumeText, 'tailored-resume.pdf');
   });
 </script>
 </body>
